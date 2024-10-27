@@ -12,6 +12,16 @@ from .nn import (
     count_flops_attn,
     gamma_embedding
 )
+from .cbam_attention import *
+
+# from nn import (
+#     checkpoint,
+#     zero_module,
+#     normalization,
+#     count_flops_attn,
+#     gamma_embedding
+# )
+# from cbam_attention import *
 
 class SiLU(nn.Module):
     def forward(self, x):
@@ -390,6 +400,7 @@ class UNet(nn.Module):
             nn.Linear(cond_embed_dim, cond_embed_dim),
         )
 
+
         ch = input_ch = int(channel_mults[0] * inner_channel)
         self.input_blocks = nn.ModuleList(
             [EmbedSequential(nn.Conv2d(in_channel, ch, 3, padding=1))]
@@ -419,6 +430,8 @@ class UNet(nn.Module):
                             num_head_channels=num_head_channels,
                             use_new_attention_order=use_new_attention_order,
                         )
+
+                        # CBAM(ch)
                     )
                 self.input_blocks.append(EmbedSequential(*layers))
                 self._feature_size += ch
@@ -448,27 +461,31 @@ class UNet(nn.Module):
                 self._feature_size += ch
 
         self.middle_block = EmbedSequential(
-            ResBlock(
-                ch,
-                cond_embed_dim,
-                dropout,
-                use_checkpoint=use_checkpoint,
-                use_scale_shift_norm=use_scale_shift_norm,
-            ),
-            AttentionBlock(
-                ch,
-                use_checkpoint=use_checkpoint,
-                num_heads=num_heads,
-                num_head_channels=num_head_channels,
-                use_new_attention_order=use_new_attention_order,
-            ),
-            ResBlock(
-                ch,
-                cond_embed_dim,
-                dropout,
-                use_checkpoint=use_checkpoint,
-                use_scale_shift_norm=use_scale_shift_norm,
-            ),
+            # ResBlock(
+            #     ch,
+            #     cond_embed_dim,
+            #     dropout,
+            #     use_checkpoint=use_checkpoint,
+            #     use_scale_shift_norm=use_scale_shift_norm,
+            # ),
+            # AttentionBlock(
+            #     ch,
+            #     use_checkpoint=use_checkpoint,
+            #     num_heads=num_heads,
+            #     num_head_channels=num_head_channels,
+            #     use_new_attention_order=use_new_attention_order,
+            # ),
+
+            CBAM(ch),
+            CBAM(ch),
+            CBAM(ch),
+            # ResBlock(
+            #     ch,
+            #     cond_embed_dim,
+            #     dropout,
+            #     use_checkpoint=use_checkpoint,
+            #     use_scale_shift_norm=use_scale_shift_norm,
+            # ),
         )
         self._feature_size += ch
 
@@ -496,6 +513,7 @@ class UNet(nn.Module):
                             num_head_channels=num_head_channels,
                             use_new_attention_order=use_new_attention_order,
                         )
+                        # CBAM(ch)
                     )
                 if level and i == res_blocks:
                     out_ch = ch
